@@ -255,7 +255,6 @@ class ParseObject extends ParseBase implements ParseCloneable {
 
     if (object is ParseObject) {
       //uniqueObjects.remove(object);
-      uniqueObjects.add(object);
     }
 
     for (ParseFileBase file in uniqueFiles) {
@@ -722,10 +721,21 @@ class ParseObject extends ParseBase implements ParseCloneable {
   }
 
   Future<void> _addThisObjectToParseCoreDataList(String key) async {
-    final CoreStore coreStore = ParseCoreData().getStore();
-    List<String> list = await coreStore.getStringList(key) ?? [];
-    list.add(json.encode(toJson(full: true)));
-    await coreStore.setStringList(key, list);
+    if (objectId != null) {
+      final CoreStore coreStore = ParseCoreData().getStore();
+      List<String> list = await coreStore.getStringList(key) ?? [];
+      final String item = json.encode({
+        'className': parseClassName,
+        'objectId': objectId,
+        'api': toJson(forApiRQ: true)
+      });
+      //list.add(json.encode(toJson(full: true)));
+      //list.remove(item);
+      list.add(item);
+      await coreStore.setStringList(key, list);
+    } else {
+      throw "Not implemented";
+    }
   }
 
   /// Deletes the current object locally and online
@@ -809,22 +819,35 @@ class ParseObject extends ParseBase implements ParseCloneable {
         await coreStore.getStringList(keyParseStoreObjects);
 
     if (listSaves != null && listSaves.isNotEmpty) {
-      List<ParseObject> parseObjectList = [];
-      for (var element in listSaves) {
-        // decode json
-        dynamic object = json.decode(element);
-        parseObjectList
-            .add(ParseObject(object[keyVarClassName]).fromJson(object));
+      List<String> remaining = [];
+      for (var item in listSaves) {
+        Map<String, dynamic> i = json.decode(item);
+        try {
+          ParseObject? obj =
+              await ParseObject(i['className'])..objectId = i['objectId'];//.fromPin(i['objectId']);
+
+          if (obj != null) {
+            i['api'].forEach((k, v) {
+              obj.set(k, v);
+            });
+
+            if ((await obj.save()).success != true) {
+              remaining.add(item);
+            }
+          } else {
+            //obj.delete();
+            throw "Not Implemented";
+          }
+        } catch (e) {
+          print('Malformed data, cannot sync server.');
+        }
       }
 
-      // send parseObjects to server
-      ParseResponse response =
-          await ParseObject._saveChildren(parseObjectList, localClient);
+      coreStore.setStringList(keyParseStoreObjects, remaining);
 
-      // if success clear all objects
-      if (response.success) {
-        coreStore.setStringList(keyParseStoreObjects, []);
-      }
+      ParseResponse response = ParseResponse();
+      response.count = listSaves.length - remaining.length;
+      response.success = remaining.isEmpty;
 
       return response;
     }
