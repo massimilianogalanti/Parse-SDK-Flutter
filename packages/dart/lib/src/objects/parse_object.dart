@@ -660,7 +660,7 @@ class ParseObject extends ParseBase implements ParseCloneable {
           ids.add(result.objectId!);
         }
 
-        await ParseCoreData().getStore().setString(hash, jsonEncode(ids));
+        ParseCoreData().getStore().setString(hash, jsonEncode(ids)); // don't (a)wait for it!
 
         response.dataSource = DataSource.REMOTE;
       }
