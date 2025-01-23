@@ -29,7 +29,7 @@ dependencies:
     git:
       url: https://github.com/massimilianogalanti/Parse-SDK-Flutter.git
       path: packages/dart
-      ref: offline
+      ref: 59709c8d0320bfeec8d1d8e260043303ddc838ec
   #parse_server_sdk: ^6.4.0
   # Uncomment for local testing
   #parse_server_sdk:
