@@ -638,7 +638,7 @@ class ParseObject extends ParseBase implements ParseCloneable {
   /// Can be used to create custom queries
   Future<ParseResponse> query<T extends ParseObject>(String query,
       {ProgressCallback? progressCallback}) async {
-    final String hash = query.replaceAll(' ', '').hashCode.toString();
+    final String hash = (this.parseClassName + query.replaceAll(' ', '')).hashCode.toString();
 
     try {
       final Uri url = getSanitisedUri(_client, _path, query: query);
@@ -820,11 +820,23 @@ class ParseObject extends ParseBase implements ParseCloneable {
 
     if (listSaves != null && listSaves.isNotEmpty) {
       List<String> remaining = [];
+      Map<String, String> offlineMap = {};
       for (var item in listSaves) {
         Map<String, dynamic> i = json.decode(item);
         try {
-          ParseObject? obj =
-              await ParseObject(i['className'])..objectId = i['objectId'];//.fromPin(i['objectId']);
+          ParseObject? obj = await ParseObject(i['className']);
+          
+          if (!i['objectId'].toString().startsWith('offline-'))
+          {
+            obj.objectId = i['objectId'];//.fromPin(i['objectId']);
+          }
+          else
+          {
+            if (offlineMap.containsKey(i['objectId'].toString()))
+            {
+              obj.objectId = offlineMap[i['objectId'].toString()];
+            }
+          }
 
           if (obj != null) {
             i['api'].forEach((k, v) {
@@ -834,6 +846,14 @@ class ParseObject extends ParseBase implements ParseCloneable {
             if ((await obj.save()).success != true) {
               remaining.add(item);
             }
+            else
+            {
+              if (i['objectId'].toString().startsWith('offline-'))
+              {
+                offlineMap[i['objectId'].toString()] = obj.objectId!;
+              }
+            }
+
           } else {
             //obj.delete();
             throw "Not Implemented";
