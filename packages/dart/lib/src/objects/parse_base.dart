@@ -283,9 +283,21 @@ abstract class ParseBase {
   /// Saves item to value storage
   Future<bool> pin() async {
     if (objectId != null) {
-      await unpin();
+
+      // Removed
+      //await unpin();
+
+      final String? pinJson = await ParseCoreData().getStore().getString(objectId!);
+      Map<String,dynamic> pinObjectMap = jsonDecode(pinJson ?? '{}'); 
       final Map<String, dynamic>? objectMap = parseEncode(this, full: true);
-      final String json = jsonEncode(objectMap);
+
+      if (objectMap != null)
+      {
+        // Merge objectMap over pinObjctMAp
+        pinObjectMap.addAll(objectMap);
+      }
+
+      final String json = jsonEncode(pinObjectMap);
       await ParseCoreData().getStore().setString(objectId!, json);
       return true;
     } else {
